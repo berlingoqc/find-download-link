@@ -2,11 +2,11 @@ package indexer
 
 // TorrentDetail ...
 type TorrentDetail struct {
-	Name       string                 `json:"name"`
-	DetailLink string                 `json:"detail_link"`
-	Size       string                 `json:"size"`
-	By         string                 `json:"by"`
-	Flags      []string 			  `json:"flags"`
+	Name       string   `json:"name"`
+	DetailLink string   `json:"detail_link"`
+	Size       string   `json:"size"`
+	By         string   `json:"by"`
+	Flags      []string `json:"flags"`
 }
 
 // TorrentBrowsingPage ...
@@ -25,4 +25,5 @@ type TorrentItem interface {
 // TorrentWebSiteCrawler ...
 type TorrentWebSiteCrawler interface {
 	GetPage(browsing string, index int) *TorrentBrowsingPage
+	GetSettings() TorrentWebSite
 }

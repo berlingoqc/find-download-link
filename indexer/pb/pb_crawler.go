@@ -47,6 +47,11 @@ type Crawler struct {
 	WebSite   indexer.TorrentWebSite
 }
 
+// GetSettings ...
+func (p *Crawler) GetSettings() indexer.TorrentWebSite {
+	return p.WebSite
+}
+
 // GetPage ...
 func (p *Crawler) GetPage(browsing string, index int) *indexer.TorrentBrowsingPage {
 	page := &indexer.TorrentBrowsingPage{
@@ -88,4 +93,9 @@ func GetCrawler() *Crawler {
 		},
 	}
 
+}
+
+func init() {
+	println("Adding piratebay crawler")
+	indexer.AddCrawler("piratebay", GetCrawler())
 }

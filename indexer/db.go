@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	// blablabla
+	// drivers for the database use in the applications
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -18,7 +18,7 @@ const (
 		data BLOB
 	);
 	`
-	addEntity = `INSERT INTO entity(type,name,data) values(?,?,?)`
+	addEntity        = `INSERT INTO entity(type,name,data) values(?,?,?)`
 	updateEntityData = `UPDATE entity SET data = ? WHERE name = ?`
 
 	getEntityName = `SELECT name FROM entity;`
@@ -50,27 +50,27 @@ func (d *DownloadDB) GetEntityName() []string {
 }
 
 // CreateEntity ...
-func (d *DownloadDB) CreateEntity(name string) (Entity,error) {
+func (d *DownloadDB) CreateEntity(name string) (Entity, error) {
 	stmt, err := d.Db.Prepare(addEntity)
 	defer stmt.Close()
 	if err != nil {
 		return Entity{}, err
 	}
-	if _ ,err = stmt.Exec("",name,"[]"); err == nil {
+	if _, err = stmt.Exec("", name, "[]"); err == nil {
 		return Entity{
 			Records: []Record{},
-			Name: name,
+			Name:    name,
 		}, nil
 	}
 	return Entity{}, err
 }
 
 // GetEntity ...
-func (d *DownloadDB) GetEntity(name string) (Entity,error) {
-	rows, err := d.Db.Query(getEntity,name)
+func (d *DownloadDB) GetEntity(name string) (Entity, error) {
+	rows, err := d.Db.Query(getEntity, name)
 	defer rows.Close()
 	if err == nil {
-		if(rows.Next()) {
+		if rows.Next() {
 			var data []byte
 			entity := Entity{}
 			if err := rows.Scan(&entity.Name, &data); err != nil {
@@ -79,7 +79,7 @@ func (d *DownloadDB) GetEntity(name string) (Entity,error) {
 			if err := json.Unmarshal(data, &entity.Records); err != nil {
 				return Entity{}, err
 			}
-			return entity,nil
+			return entity, nil
 		} else {
 			if _, err := d.CreateEntity(name); err == nil {
 				return d.GetEntity(name)
@@ -88,11 +88,11 @@ func (d *DownloadDB) GetEntity(name string) (Entity,error) {
 			}
 		}
 	}
-	return Entity{},errors.New("Unangdle shit")
+	return Entity{}, errors.New("Unangdle shit")
 }
 
 // AddRecordEntity ...
-func (d *DownloadDB) AddRecordEntity(name string, records []Record) (Entity,error) {
+func (d *DownloadDB) AddRecordEntity(name string, records []Record) (Entity, error) {
 	var entity Entity
 	var err error
 	var data []byte
@@ -106,14 +106,14 @@ func (d *DownloadDB) AddRecordEntity(name string, records []Record) (Entity,erro
 			}
 		}
 	}
-	return entity,err
+	return entity, err
 }
 
 // GetDownloadDB ...
 func GetDownloadDB() (*DownloadDB, error) {
 	if db, err := sql.Open("sqlite3", "./data.db"); err == nil && db != nil {
 		if _, err = db.Exec(createTable); err != nil {
-			return nil,err
+			return nil, err
 		}
 		return &DownloadDB{
 			Db: db,
@@ -122,4 +122,3 @@ func GetDownloadDB() (*DownloadDB, error) {
 		return nil, err
 	}
 }
-

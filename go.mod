@@ -14,8 +14,10 @@ require (
 	github.com/jawher/mow.cli v1.1.0 // indirect
 	github.com/kennygrant/sanitize v1.2.4 // indirect
 	github.com/mattn/go-sqlite3 v1.11.0
+	github.com/mdempsky/gocode v0.0.0-20190203001940-7fb65232883f // indirect
 	github.com/saintfish/chardet v0.0.0-20120816061221-3af4cd4741ca // indirect
 	github.com/temoto/robotstxt v1.1.1 // indirect
 	golang.org/x/net v0.0.0-20191014212845-da9a3fd4c582 // indirect
+	golang.org/x/tools v0.0.0-20191018000036-341939e08647 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 )
