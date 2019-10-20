@@ -2,6 +2,8 @@ package indexer
 
 import "strings"
 
+const notAssigned = 999999
+
 // TorrentCriteria ...
 type TorrentCriteria struct {
 	MinSeeders      int
@@ -24,7 +26,15 @@ type TorrentWebSite struct {
 // ExtractNameAndTag ...
 func ExtractNameAndTag(str string, tags []string) (s string, ret []string) {
 	s = strings.ToLower(str)
-	firstIndexTag := 99999
+	s = strings.ReplaceAll(s, "-", " ")
+	s = strings.ReplaceAll(s, ".", " ")
+	s = strings.ReplaceAll(s, "_", " ")
+	s = strings.ReplaceAll(s, "[", "")
+	s = strings.ReplaceAll(s, "]", "")
+	s = strings.ReplaceAll(s, "(", "")
+	s = strings.ReplaceAll(s, ")", "")
+
+	firstIndexTag := notAssigned
 	for _, t := range tags {
 		t = strings.ToLower(t)
 		index := strings.Index(s, t)
@@ -36,10 +46,8 @@ func ExtractNameAndTag(str string, tags []string) (s string, ret []string) {
 		}
 
 	}
-	if firstIndexTag > 0 {
-		s = str[0:firstIndexTag]
+	if firstIndexTag > 0 && firstIndexTag != notAssigned {
+		s = s[0:firstIndexTag]
 	}
-	s = strings.ReplaceAll(s, ".", " ")
-	s = strings.ReplaceAll(s, "_", " ")
 	return s, ret
 }

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"os"
 
 	// drivers for the database use in the applications
 	_ "github.com/mattn/go-sqlite3"
@@ -17,13 +18,26 @@ const (
 		name VARCHAR(255),
 		data BLOB
 	);
+
+	CREATE TABLE IF NOT EXISTS crawlingrun (
+		extracton INTEGER PRIMARY KEY,
+		crawler VARCHAR(50),
+		browsing VARCHAR(50),
+		starting INTEGER,
+		ending INTEGER
+	);
 	`
 	addEntity        = `INSERT INTO entity(type,name,data) values(?,?,?)`
 	updateEntityData = `UPDATE entity SET data = ? WHERE name = ?`
 
+	addCrawlingRun = `INSERT INTO crawlingrun values(?,?,?,?,?)`
+
 	getEntityName = `SELECT name FROM entity;`
 	getEntity     = `SELEcT name, data FROM entity WHERE name = ?`
 )
+
+var DbFile string
+var OverWriteDb bool
 
 // Entity ...
 type Entity struct {
@@ -37,6 +51,15 @@ type Record struct {
 	Source    string        `json:"source"`
 	Detail    TorrentDetail `json:"detail"`
 	Link      string        `json:"link"`
+}
+
+// CrawlingRun ...
+type CrawlingRun struct {
+	ExtractOn int64
+	Crawler   string
+	Browsing  string
+	Starting  int
+	Ending    int
 }
 
 // DownloadDB ...
@@ -111,7 +134,10 @@ func (d *DownloadDB) AddRecordEntity(name string, records []Record) (Entity, err
 
 // GetDownloadDB ...
 func GetDownloadDB() (*DownloadDB, error) {
-	if db, err := sql.Open("sqlite3", "./data.db"); err == nil && db != nil {
+	if OverWriteDb {
+		os.Remove(DbFile)
+	}
+	if db, err := sql.Open("sqlite3", DbFile); err == nil && db != nil {
 		if _, err = db.Exec(createTable); err != nil {
 			return nil, err
 		}

@@ -72,7 +72,7 @@ func (p *Crawler) GetPage(browsing string, index int) *indexer.TorrentBrowsingPa
 
 // GetCrawler ...
 func GetCrawler() *Crawler {
-	c := colly.NewCollector(colly.CacheDir("./cache"))
+	c := colly.NewCollector()
 	c.OnRequest(func(r *colly.Request) {
 		fmt.Println("Visiting", r.URL.String())
 	})
@@ -86,7 +86,7 @@ func GetCrawler() *Crawler {
 					Path:     "207",
 					Criteria: indexer.TorrentCriteria{
 						MinSeeders:      10,
-						RequiredKeyword: []string{"720p", "1080p", "webrip", "brrip", "blueray", "hdrip", "x264", "ac3", "english"},
+						RequiredKeyword: []string{"720p", "1080p", "webrip", "brrip", "blueray", "hdrip", "x264", "ac3", "english", "bluray", "brrip", "x264"},
 					},
 				},
 			},
