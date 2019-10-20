@@ -21,8 +21,12 @@ func (f *FindDownloadAPI) GetEntity(name string) indexer.Entity {
 
 }
 
-func GetFindDownloadAPI() *indexer.DownloadDB {
-	return &FindDownloadAPI{
-		db: indexer.GetDownloadDB(),
+func GetFindDownloadAPI() (*FindDownloadAPI, error) {
+	db, err := indexer.GetDownloadDB()
+	if err != nil {
+		return nil, err
 	}
+	return &FindDownloadAPI{
+		db: db,
+	}, err
 }

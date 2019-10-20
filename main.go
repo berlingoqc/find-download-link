@@ -22,9 +22,9 @@ func main() {
 	indexer.DbFile = *dbFilePtr
 	indexer.OverWriteDb = *dbOverWritePtr
 
-	ch, err := indexer.StartCrawlRoutine(*crawlerPtr, *browsingPtr, *startIndex, *endingIndex)
+	info, err := indexer.StartCrawlRoutine(*crawlerPtr, *browsingPtr, *startIndex, *endingIndex)
 	if err != nil {
 		panic(err)
 	}
-	<-ch
+	<-info.SignalCh
 }

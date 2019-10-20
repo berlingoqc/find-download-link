@@ -33,27 +33,37 @@ func StartCrawlRoutine(crawlerName, browsing string, starting, ending int) (*Cra
 	name := crawlerName + ":" + browsing
 
 	if _, ok := mapCrawlingInfo[name]; !ok {
-
+		crawlingInfo := &CrawlingRunInfo{
+			Crawler:    crawlerName,
+			Browsing:   browsing,
+			Starting:   starting,
+			Ending:     ending,
+			ItemsAdded: []string{},
+			SignalCh:   make(chan interface{}),
+		}
+		return crawlingInfo, crawlBrowsing(crawlingInfo)
 	} else {
-		return nil, errors.New("")
+		return nil, errors.New("no crawler found for " + crawlerName)
 	}
-
-	crawlingInfo := &CrawlingRunInfo{
-		Crawler:    crawlerName,
-		Browsing:   browsing,
-		Starting:   starting,
-		Ending:     ending,
-		ItemsAdded: []string{},
-		SignalCh:   make(chan interface{}),
-	}
-
-	return crawlingInfo.SignalCh, crawlBrowsing(crawlingInfo)
 }
 
-func StopCrawlRoutine() {
-	if crawlingInfo != nil {
+func GetActiveCrawler() (a []CrawlingRunInfo) {
+	for _, i := range mapCrawlingInfo {
+		a = append(a, *i)
 	}
-	panic("Crawling routine is not started")
+	return a
+}
+
+func StopCrawlRoutine(crawler, browsing string) error {
+	name := getCrawlBrowsingName(crawler, browsing)
+	if _, ok := mapCrawlingInfo[name]; ok {
+		delete(mapCrawlingInfo, name)
+	}
+	return errors.New("Crawling routine is not started")
+}
+
+func getCrawlBrowsingName(crawler, browsing string) string {
+	return crawler + ":" + browsing
 }
 
 func crawlBrowsing(runInfo *CrawlingRunInfo) error {
