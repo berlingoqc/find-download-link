@@ -36,8 +36,13 @@ const (
 	getEntity     = `SELEcT name, data FROM entity WHERE name = ?`
 )
 
-var DbFile string
-var OverWriteDb bool
+// DBSettings ...
+type DBSettings struct {
+	Path      string `json:"path"`
+	OverWrite bool   `json:"overwrite"`
+}
+
+var dbsettings DBSettings
 
 // Entity ...
 type Entity struct {
@@ -68,8 +73,20 @@ type DownloadDB struct {
 }
 
 // GetEntityName ...
-func (d *DownloadDB) GetEntityName() []string {
-	return []string{}
+func (d *DownloadDB) GetEntityName() ([]string, error) {
+	rows, err := d.Db.Query(getEntityName)
+	if err != nil {
+		return nil, err
+	}
+	var s string
+	var r []string
+	for rows.Next() {
+		if err = rows.Scan(&s); err != nil {
+			return nil, err
+		}
+		r = append(r, s)
+	}
+	return r, nil
 }
 
 // CreateEntity ...
@@ -103,13 +120,11 @@ func (d *DownloadDB) GetEntity(name string) (Entity, error) {
 				return Entity{}, err
 			}
 			return entity, nil
-		} else {
-			if _, err := d.CreateEntity(name); err == nil {
-				return d.GetEntity(name)
-			} else {
-				return Entity{}, err
-			}
 		}
+		if _, err = d.CreateEntity(name); err == nil {
+			return d.GetEntity(name)
+		}
+		return Entity{}, err
 	}
 	return Entity{}, errors.New("Unangdle shit")
 }
@@ -121,7 +136,21 @@ func (d *DownloadDB) AddRecordEntity(name string, records []Record) (Entity, err
 	var data []byte
 	var stmt *sql.Stmt
 	if entity, err = d.GetEntity(name); err == nil {
-		entity.Records = append(entity.Records, records...)
+		for _, rr := range records {
+			index := -1
+			for i, r := range entity.Records {
+				if rr.Link == r.Link {
+					index = i
+					break
+				}
+			}
+			if index > -1 {
+				entity.Records[index] = rr
+			} else {
+				entity.Records = append(entity.Records, rr)
+			}
+
+		}
 		if stmt, err = d.Db.Prepare(updateEntityData); err == nil {
 			defer stmt.Close()
 			if data, err = json.Marshal(entity.Records); err == nil {
@@ -134,17 +163,20 @@ func (d *DownloadDB) AddRecordEntity(name string, records []Record) (Entity, err
 
 // GetDownloadDB ...
 func GetDownloadDB() (*DownloadDB, error) {
-	if OverWriteDb {
-		os.Remove(DbFile)
+	if dbsettings.OverWrite {
+		os.Remove(dbsettings.Path)
 	}
-	if db, err := sql.Open("sqlite3", DbFile); err == nil && db != nil {
+	var db *sql.DB
+	var err error
+	println("Openning database " + dbsettings.Path)
+	if db, err = sql.Open("sqlite3", dbsettings.Path); err == nil && db != nil {
+		db.SetMaxOpenConns(1)
 		if _, err = db.Exec(createTable); err != nil {
 			return nil, err
 		}
 		return &DownloadDB{
 			Db: db,
 		}, nil
-	} else {
-		return nil, err
 	}
+	return nil, err
 }

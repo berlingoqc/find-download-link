@@ -2,131 +2,236 @@ package indexer
 
 import (
 	"errors"
+	"strconv"
 	"time"
 )
 
 var (
+	// FeedBack is to be implement to send message by the application
+	FeedBack func(ns, event string, data interface{})
 	crawlers map[string]TorrentWebSiteCrawler = make(map[string]TorrentWebSiteCrawler)
 )
 
+// GetCrawler ...
 func GetCrawler(name string) TorrentWebSiteCrawler {
 	return crawlers[name]
 }
 
+// GetAllCrawlerName ...
+func GetAllCrawlerName() []string {
+	var n []string
+	for k := range crawlers {
+		n = append(n, k)
+	}
+	return n
+}
+
+// GetAvailableBrowsingForCrawler ...
+func GetAvailableBrowsingForCrawler(name string) ([]string, error) {
+
+	return nil, nil
+}
+
+// AddCrawler ...
 func AddCrawler(name string, crawler TorrentWebSiteCrawler) {
 	crawlers[name] = crawler
 }
 
+// CrawlingRunInfo ...
 type CrawlingRunInfo struct {
-	Crawler    string
-	Browsing   string
-	Starting   int
-	Ending     int
-	ItemsAdded []string
-	SignalCh   chan interface{}
+	Crawler   string                    `json:"crawler"`
+	Browsing  string                    `json:"browsing"`
+	Starting  int                       `json:"starting"`
+	Ending    int                       `json:"ending"`
+	Current   int                       `json:"current"`
+	Status    string                    `json:"status"`
+	ID        int64                     `json:"id"`
+	PageInfos []TorrentPageCrawlingInfo `json:"pageinfos"`
+	Error     string                    `json:"error"`
+	SignalCh  chan interface{}          `json:"-"`
 }
 
-var mapCrawlingInfo map[string]*CrawlingRunInfo
+// TorrentPageCrawlingInfo ...
+type TorrentPageCrawlingInfo struct {
+	RunInfo     *CrawlingRunInfo `json:"-"`
+	ExtractedOn int64            `json:"extracted_on"`
+	ItemsAdded  []string         `json:"itemsAdded"`
+}
 
+// TimeoutCrawling ...
+type TimeoutCrawling struct {
+	BetweenRequest         int `json:"betweenRequest"`
+	BetweenPages           int `json:"betweenPages"`
+	AfterRejection         int `json:"aferRejection"`
+	MaxRetryAfterRejection int `json:"maxRetryAfterRejection"`
+}
+
+var timeout TimeoutCrawling
+var mapCrawlingInfo map[int64]*CrawlingRunInfo
+
+// StartCrawlRoutine ...
 func StartCrawlRoutine(crawlerName, browsing string, starting, ending int) (*CrawlingRunInfo, error) {
-
-	name := crawlerName + ":" + browsing
-
+	name := time.Now().Unix()
 	if _, ok := mapCrawlingInfo[name]; !ok {
 		crawlingInfo := &CrawlingRunInfo{
-			Crawler:    crawlerName,
-			Browsing:   browsing,
-			Starting:   starting,
-			Ending:     ending,
-			ItemsAdded: []string{},
-			SignalCh:   make(chan interface{}),
+			Crawler:   crawlerName,
+			Browsing:  browsing,
+			Starting:  starting,
+			Ending:    ending,
+			ID:        name,
+			PageInfos: []TorrentPageCrawlingInfo{},
+			SignalCh:  make(chan interface{}),
 		}
-		return crawlingInfo, crawlBrowsing(crawlingInfo)
-	} else {
-		return nil, errors.New("no crawler found for " + crawlerName)
+		return crawlingInfo, crawlBrowsing(name, crawlingInfo)
 	}
+	return nil, errors.New("no crawler found for " + crawlerName)
 }
 
-func GetActiveCrawler() (a []CrawlingRunInfo) {
+// GetActiveCrawler ...
+func GetActiveCrawler() []CrawlingRunInfo {
+	a := []CrawlingRunInfo{}
 	for _, i := range mapCrawlingInfo {
 		a = append(a, *i)
 	}
 	return a
 }
 
-func StopCrawlRoutine(crawler, browsing string) error {
-	name := getCrawlBrowsingName(crawler, browsing)
-	if _, ok := mapCrawlingInfo[name]; ok {
-		delete(mapCrawlingInfo, name)
+// StopCrawlRoutine ...
+func StopCrawlRoutine(name int64) error {
+	if r, ok := mapCrawlingInfo[name]; ok {
+		r.SignalCh <- 0
+		r.SignalCh <- 0
+		r.SignalCh <- 0
+		return nil
 	}
 	return errors.New("Crawling routine is not started")
 }
 
-func getCrawlBrowsingName(crawler, browsing string) string {
-	return crawler + ":" + browsing
+// RemoveCrawlRoutine ...
+func RemoveCrawlRoutine(id int64) error {
+	if c, ok := mapCrawlingInfo[id]; ok {
+		if c.Status == "stopped" {
+			delete(mapCrawlingInfo, id)
+			return nil
+		}
+		return errors.New("crawling routine is not stopped")
+	}
+	return errors.New("crawling routine doesnt exists")
 }
 
-func crawlBrowsing(runInfo *CrawlingRunInfo) error {
-	println("CRAWLER ", runInfo.Crawler, " BROWSING ", runInfo.Browsing, " STARTING ", runInfo.Starting, " ENDING ", runInfo.Ending)
+// StartCrawlRoutineAfter ...
+func StartCrawlRoutineAfter(id int64) (CrawlingRunInfo, error) {
+	return CrawlingRunInfo{}, nil
+}
+
+func crawlBrowsing(name int64, runInfo *CrawlingRunInfo) error {
 	var ok bool
 	var crawler TorrentWebSiteCrawler
 	if crawler, ok = crawlers[runInfo.Crawler]; !ok {
 		return errors.New("Not crawler found for " + runInfo.Crawler)
 	}
 
+	updateMap(name, runInfo)
+
 	criteria := crawler.GetSettings().Browsings[runInfo.Browsing].Criteria
 	ch := make(chan Record, 5)
-	if err := startDbRoutine(criteria, ch); err != nil {
+	if err := startDbRoutine(criteria, ch, runInfo.SignalCh); err != nil {
 		return err
 	}
 
-	timeoutTime := 2
+	timeoutMultiplier := 1
 
 	go func() {
 		index := runInfo.Starting
-		for {
-			page := crawler.GetPage(runInfo.Browsing, index)
-			if len(page.Items) == 0 {
-				println("No item return in the page, waiting timeout of ", timeoutTime)
-				time.Sleep(time.Duration(timeoutTime) * time.Minute)
+		runInfo.Status = "running"
+		defer func() {
+			if r := recover(); r != nil {
+				runInfo.Error = (r.(error)).Error()
+				runInfo.Status = "stopped"
+				updateMap(name, runInfo)
 			}
-			for _, item := range page.Items {
-				magnet := item.GetMagnet()
-				ch <- Record{
-					Source:    runInfo.Crawler,
-					Detail:    item.GetDetail(),
-					ExtractOn: time.Now().Unix(),
-					Link:      *magnet,
+		}()
+		for {
+			select {
+			case _ = <-runInfo.SignalCh:
+				panic(errors.New("manually stopped"))
+			default:
+				page := crawler.GetPage(runInfo.Browsing, index)
+				runInfo.Current = index
+				runInfo.PageInfos = append(runInfo.PageInfos, TorrentPageCrawlingInfo{
+					ExtractedOn: time.Now().Unix(),
+					ItemsAdded:  []string{},
+				})
+				updateMap(name, runInfo)
+				if len(page.Items) == 0 {
+					sleepWithChannel(time.Duration(timeout.AfterRejection*timeoutMultiplier)*time.Millisecond, runInfo.SignalCh)
+					timeoutMultiplier++
+					if timeoutMultiplier == timeout.MaxRetryAfterRejection {
+						panic(errors.New("max timeout without data at index " + strconv.Itoa(index)))
+					}
+				}
+				for _, item := range page.Items {
+					sleepWithChannel(time.Duration(timeout.BetweenRequest)*time.Millisecond, runInfo.SignalCh)
+					magnet := item.GetMagnet()
+					ch <- Record{
+						Source:    runInfo.Crawler,
+						Detail:    item.GetDetail(),
+						ExtractOn: time.Now().Unix(),
+						Link:      *magnet,
+					}
+					runInfo.PageInfos[index-runInfo.Starting].ItemsAdded = append(runInfo.PageInfos[index].ItemsAdded, item.GetDetail().Name)
+				}
+				updateMap(name, runInfo)
+				sleepWithChannel(time.Duration(timeout.BetweenPages)*time.Millisecond, runInfo.SignalCh)
+				index++
+				if index == runInfo.Ending {
+					break
 				}
 			}
-			time.Sleep(15 * time.Second)
-			index++
-			if index == runInfo.Ending {
-				break
-			}
 		}
-		runInfo.SignalCh <- 0
 	}()
 	return nil
 }
 
-func startDbRoutine(criteria TorrentCriteria, ch chan Record) error {
+func updateMap(name int64, info *CrawlingRunInfo) {
+	mapCrawlingInfo[name] = info
+	FeedBack("findDownload", "onCrawlingInfoUpdate", info)
+}
+
+func sleepWithChannel(duration time.Duration, stopChannel chan interface{}) {
+	select {
+	case _ = <-stopChannel:
+		panic(errors.New("Stop manually"))
+	case <-time.After(duration):
+		return
+	}
+}
+
+func startDbRoutine(criteria TorrentCriteria, ch chan Record, chOver chan interface{}) error {
 	db, err := GetDownloadDB()
 	if err != nil {
 		panic(err)
 	}
 	go func() {
 		for {
-			record := <-ch
-			entityName, tags := ExtractNameAndTag(record.Detail.Name, criteria.RequiredKeyword)
-			record.Detail.Flags = tags
-			if _, err := db.AddRecordEntity(entityName, []Record{record}); err != nil {
-				println("ERROR ", err)
-				continue
+			select {
+			case _ = <-chOver:
+				println("Over stopping db task")
+				return
+			case record := <-ch:
+				entityName, tags := ExtractNameAndTag(record.Detail.Name, criteria.Tags)
+				record.Detail.Flags = tags
+				if _, err := db.AddRecordEntity(entityName, []Record{record}); err != nil {
+					println("ERROR ", err)
+					continue
+				}
+				println("Add record for " + entityName)
 			}
-			println("Add record for " + entityName)
 		}
-
 	}()
 	return err
+}
+
+func init() {
+	mapCrawlingInfo = make(map[int64]*CrawlingRunInfo)
 }

@@ -52,6 +52,11 @@ func (p *Crawler) GetSettings() indexer.TorrentWebSite {
 	return p.WebSite
 }
 
+// SetSettings ...
+func (p *Crawler) SetSettings(t indexer.TorrentWebSite) {
+	p.WebSite = t
+}
+
 // GetPage ...
 func (p *Crawler) GetPage(browsing string, index int) *indexer.TorrentBrowsingPage {
 	page := &indexer.TorrentBrowsingPage{
@@ -78,24 +83,11 @@ func GetCrawler() *Crawler {
 	})
 	return &Crawler{
 		Collector: c,
-		WebSite: indexer.TorrentWebSite{
-			URL: "https://proxtpb.art",
-			Browsings: map[string]indexer.BrowsingBase{
-				"hdmovie": indexer.BrowsingBase{
-					Category: "hdmovie",
-					Path:     "207",
-					Criteria: indexer.TorrentCriteria{
-						MinSeeders:      10,
-						RequiredKeyword: []string{"720p", "1080p", "webrip", "brrip", "blueray", "hdrip", "x264", "ac3", "english", "bluray", "brrip", "x264"},
-					},
-				},
-			},
-		},
+		WebSite:   indexer.TorrentWebSite{},
 	}
 
 }
 
 func init() {
-	println("Adding piratebay crawler")
 	indexer.AddCrawler("piratebay", GetCrawler())
 }

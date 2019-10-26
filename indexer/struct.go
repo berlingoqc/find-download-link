@@ -26,4 +26,5 @@ type TorrentItem interface {
 type TorrentWebSiteCrawler interface {
 	GetPage(browsing string, index int) *TorrentBrowsingPage
 	GetSettings() TorrentWebSite
+	SetSettings(t TorrentWebSite)
 }

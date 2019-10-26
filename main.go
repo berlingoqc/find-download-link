@@ -19,8 +19,18 @@ func main() {
 
 	flag.Parse()
 
-	indexer.DbFile = *dbFilePtr
-	indexer.OverWriteDb = *dbOverWritePtr
+	indexer.SetSettings(indexer.Settings{
+		DB: indexer.DBSettings{
+			Path:      *dbFilePtr,
+			OverWrite: *dbOverWritePtr,
+		},
+		Timeout: indexer.TimeoutCrawling{
+			BetweenRequest:         3,
+			BetweenPages:           3,
+			AfterRejection:         3,
+			MaxRetryAfterRejection: 3,
+		},
+	})
 
 	info, err := indexer.StartCrawlRoutine(*crawlerPtr, *browsingPtr, *startIndex, *endingIndex)
 	if err != nil {
