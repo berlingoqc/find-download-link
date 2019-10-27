@@ -28,8 +28,14 @@ func GetAllCrawlerName() []string {
 
 // GetAvailableBrowsingForCrawler ...
 func GetAvailableBrowsingForCrawler(name string) ([]string, error) {
-
-	return nil, nil
+	if c, ok := crawlers[name]; ok {
+		var r []string
+		for n := range c.GetSettings().Browsings {
+			r = append(r, n)
+		}
+		return r, nil
+	}
+	return nil, errors.New("Clawler doesnt exists")
 }
 
 // AddCrawler ...

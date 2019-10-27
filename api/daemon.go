@@ -16,6 +16,20 @@ func (d *DaemonFindDownloadAPI) GetActiveCrawler() []indexer.CrawlingRunInfo {
 	return indexer.GetActiveCrawler()
 }
 
+// GetAvailableCrawler ...
+func (d *DaemonFindDownloadAPI) GetAvailableCrawler() []string {
+	return indexer.GetAllCrawlerName()
+}
+
+// GetAvailableBrowsingForCrawler ...
+func (d *DaemonFindDownloadAPI) GetAvailableBrowsingForCrawler(name string) []string {
+	if r, err := indexer.GetAvailableBrowsingForCrawler(name); err == nil {
+		return r
+	} else {
+		panic(err)
+	}
+}
+
 // StopActiveCrawler ...
 func (d *DaemonFindDownloadAPI) StopActiveCrawler(id float64) {
 	if err := indexer.StopCrawlRoutine(int64(id)); err != nil {
