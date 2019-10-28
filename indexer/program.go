@@ -207,7 +207,8 @@ func crawlBrowsing(name int64, runInfo *CrawlingRunInfo) error {
 						ExtractOn: time.Now().Unix(),
 						Link:      *magnet,
 					}
-					runInfo.PageInfos[index-runInfo.Starting].ItemsAdded = append(runInfo.PageInfos[index].ItemsAdded, item.GetDetail().Name)
+					indexPage := len(runInfo.PageInfos) - 1
+					runInfo.PageInfos[indexPage].ItemsAdded = append(runInfo.PageInfos[indexPage].ItemsAdded, item.GetDetail().Name)
 				}
 				updateMap(name, runInfo)
 				sleepWithChannel(time.Duration(timeout.BetweenPages)*time.Millisecond, runInfo.SignalCh)

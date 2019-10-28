@@ -25,19 +25,22 @@ const (
 		browsing VARCHAR(50),
 		start INTEGER,
 		end INTEGER,
+		current INTEGER,
 		data BLOB
 	);
 	`
 	addEntity        = `INSERT INTO entity(type,name,data) values(?,?,?)`
 	updateEntityData = `UPDATE entity SET data = ? WHERE name = ?`
 
-	addCrawlingRun = `INSERT INTO crawlingrun values(?,?,?,?,?,?)`
+	addCrawlingRun = `INSERT INTO crawlingrun values(?,?,?,?,?,?,?)`
 
 	getEntityName = `SELECT name FROM entity;`
 	getEntity     = `SELECT name, data FROM entity WHERE name = ?`
 
-	getCrawlingJobName = `SELECT id, crawler, browsing, start, end FROM crawlingrun`
+	getCrawlingJobName = `SELECT id, crawler, browsing, start, end, current FROM crawlingrun`
 	getCrawlingJob     = `SELECT data FROM crawlingrun WHERE id = ?`
+
+	getCrawlingJobNameForCrawler = getCrawlingJobName + " WHERE crawler = ?"
 
 	deleteCrawlingJob = `DELETE FROM crawlingrun WHERE id = ?`
 )
@@ -78,22 +81,31 @@ type DownloadDB struct {
 	Db *sql.DB
 }
 
-// GetCrawlingRunInfos ...
-func (d *DownloadDB) GetCrawlingRunInfos() (a []CrawlingRunInfo, e error) {
+func (d *DownloadDB) getCrawlingRunInfos(query string, args ...interface{}) (a []CrawlingRunInfo, e error) {
 	var rows *sql.Rows
-	rows, e = d.Db.Query(getCrawlingJobName)
+	rows, e = d.Db.Query(query, args...)
 	if e != nil {
 		return a, e
 	}
 	var aa CrawlingRunInfo
 	aa.Status = "archived"
 	for rows.Next() {
-		if e = rows.Scan(&aa.ID, &aa.Crawler, &aa.Browsing, &aa.Starting, &aa.Ending); e != nil {
+		if e = rows.Scan(&aa.ID, &aa.Crawler, &aa.Browsing, &aa.Starting, &aa.Ending, &aa.Current); e != nil {
 			return a, e
 		}
 		a = append(a, aa)
 	}
 	return a, e
+}
+
+// GetCrawlingRunInfos ...
+func (d *DownloadDB) GetCrawlingRunInfos() (a []CrawlingRunInfo, e error) {
+	return d.getCrawlingRunInfos(getCrawlingJobName)
+}
+
+// GetCrawlingRunInfosForCrawler ...
+func (d *DownloadDB) GetCrawlingRunInfosForCrawler(name string) ([]CrawlingRunInfo, error) {
+	return d.getCrawlingRunInfos(getCrawlingJobNameForCrawler, name)
 }
 
 // GetCrawlingRunDetail ...
@@ -119,7 +131,7 @@ func (d *DownloadDB) SaveCrawlingJob(job *CrawlingRunInfo) error {
 	if err != nil {
 		return err
 	}
-	_, err = d.Db.Exec(addCrawlingRun, job.ID, job.Crawler, job.Browsing, job.Starting, job.Current, data)
+	_, err = d.Db.Exec(addCrawlingRun, job.ID, job.Crawler, job.Browsing, job.Starting, job.Ending, job.Current, data)
 	return err
 }
 

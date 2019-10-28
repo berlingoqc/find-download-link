@@ -90,6 +90,15 @@ func (d *DaemonFindDownloadAPI) StartCrawlerAfter(id float64, ending float64) in
 	}
 }
 
+// GetCrawledInterval ...
+func (d *DaemonFindDownloadAPI) GetCrawledInterval(crawler string) map[string][]indexer.IntervalCrawled {
+	ma, err := indexer.GetCrawledInterval(d.db, crawler)
+	if err != nil {
+		panic(err)
+	}
+	return ma
+}
+
 // GetDaemonFindDownloadAPI ...
 func GetDaemonFindDownloadAPI() (*DaemonFindDownloadAPI, error) {
 	db, err := indexer.GetDownloadDB()
