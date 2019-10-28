@@ -30,6 +30,11 @@ func (d *DaemonFindDownloadAPI) GetAvailableBrowsingForCrawler(name string) []st
 	}
 }
 
+// GetAllBrowsing ...
+func (d *DaemonFindDownloadAPI) GetAllBrowsing() []string {
+	return indexer.GetAllAvailableBrowsing()
+}
+
 // RemoveCrawlingRun ...
 func (d *DaemonFindDownloadAPI) RemoveCrawlingRun(id float64) float64 {
 	if err := d.db.RemoveCrawlingRun(int64(id)); err != nil {

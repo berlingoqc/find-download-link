@@ -2,7 +2,16 @@ package api
 
 import (
 	"github.com/berlingoqc/find-download-link/indexer"
+	"github.com/mitchellh/mapstructure"
 )
+
+// PagingSearch ...
+type PagingSearch struct {
+	Limit   int      `json:"limit"`
+	Offset  int      `json:"offset"`
+	OrderBy []string `json:"orderBy"`
+	Query   string   `json:"query"`
+}
 
 // FindDownloadAPI ...
 type FindDownloadAPI struct {
@@ -10,8 +19,13 @@ type FindDownloadAPI struct {
 }
 
 // GetEntityName ...
-func (f *FindDownloadAPI) GetEntityName() []string {
-	s, err := f.db.GetEntityName()
+func (f *FindDownloadAPI) GetEntityName(in map[string]interface{}) []string {
+	p := &PagingSearch{}
+	err := mapstructure.Decode(in, p)
+	if err != nil {
+		panic(err)
+	}
+	s, err := f.db.GetEntityName(p.Limit, p.Offset)
 	if err != nil {
 		panic(err)
 	}

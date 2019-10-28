@@ -15,6 +15,7 @@ require (
 	github.com/kennygrant/sanitize v1.2.4 // indirect
 	github.com/mattn/go-sqlite3 v1.11.0
 	github.com/mdempsky/gocode v0.0.0-20190203001940-7fb65232883f // indirect
+	github.com/mitchellh/mapstructure v1.1.2
 	github.com/saintfish/chardet v0.0.0-20120816061221-3af4cd4741ca // indirect
 	github.com/temoto/robotstxt v1.1.1 // indirect
 	golang.org/x/net v0.0.0-20191014212845-da9a3fd4c582 // indirect

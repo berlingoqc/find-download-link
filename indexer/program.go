@@ -38,6 +38,26 @@ func GetAvailableBrowsingForCrawler(name string) ([]string, error) {
 	return nil, errors.New("Clawler doesnt exists")
 }
 
+// GetAllAvailableBrowsing ...
+func GetAllAvailableBrowsing() []string {
+	var r []string
+	for _, v := range crawlers {
+		for k := range v.GetSettings().Browsings {
+			present := false
+			for _, r := range r {
+				if r == k {
+					present = true
+					break
+				}
+			}
+			if !present {
+				r = append(r, k)
+			}
+		}
+	}
+	return r
+}
+
 // AddCrawler ...
 func AddCrawler(name string, crawler TorrentWebSiteCrawler) {
 	crawlers[name] = crawler
@@ -150,7 +170,7 @@ func crawlBrowsing(name int64, runInfo *CrawlingRunInfo) error {
 
 	criteria := crawler.GetSettings().Browsings[runInfo.Browsing].Criteria
 	ch := make(chan Record, 5)
-	if err := startDbRoutine(criteria, ch, runInfo.SignalCh); err != nil {
+	if err := startDbRoutine(runInfo.Browsing, criteria, ch, runInfo.SignalCh); err != nil {
 		return err
 	}
 
@@ -236,7 +256,7 @@ func sleepWithChannel(duration time.Duration, stopChannel chan interface{}) {
 	}
 }
 
-func startDbRoutine(criteria TorrentCriteria, ch chan Record, chOver chan interface{}) error {
+func startDbRoutine(browsing string, criteria TorrentCriteria, ch chan Record, chOver chan interface{}) error {
 	db, err := GetDownloadDB()
 	if err != nil {
 		panic(err)
@@ -245,16 +265,19 @@ func startDbRoutine(criteria TorrentCriteria, ch chan Record, chOver chan interf
 		for {
 			select {
 			case _ = <-chOver:
-				println("Over stopping db task")
 				return
 			case record := <-ch:
 				entityName, tags := ExtractNameAndTag(record.Detail.Name, criteria.Tags)
 				record.Detail.Flags = tags
+				if !db.EntityExists(entityName) {
+					if _, err := db.CreateEntity(browsing, entityName); err != nil {
+						println("ERROR ", err.Error())
+					}
+				}
 				if _, err := db.AddRecordEntity(entityName, []Record{record}); err != nil {
-					println("ERROR ", err)
+					println("ERROR ", err.Error())
 					continue
 				}
-				println("Add record for " + entityName)
 			}
 		}
 	}()

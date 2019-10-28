@@ -23,6 +23,7 @@ const (
 		id INTEGER PRIMARY KEY,
 		crawler VARCHAR(50),
 		browsing VARCHAR(50),
+		error VARCHAR(255),
 		start INTEGER,
 		end INTEGER,
 		current INTEGER,
@@ -32,12 +33,12 @@ const (
 	addEntity        = `INSERT INTO entity(type,name,data) values(?,?,?)`
 	updateEntityData = `UPDATE entity SET data = ? WHERE name = ?`
 
-	addCrawlingRun = `INSERT INTO crawlingrun values(?,?,?,?,?,?,?)`
+	addCrawlingRun = `INSERT INTO crawlingrun values(?,?,?,?,?,?,?,?)`
 
-	getEntityName = `SELECT name FROM entity;`
-	getEntity     = `SELECT name, data FROM entity WHERE name = ?`
+	getEntityName = `SELECT name FROM entity LIMIT ? OFFSET ?`
+	getEntity     = `SELECT name,type, data FROM entity WHERE name = ?`
 
-	getCrawlingJobName = `SELECT id, crawler, browsing, start, end, current FROM crawlingrun`
+	getCrawlingJobName = `SELECT id, crawler, browsing,error, start, end, current FROM crawlingrun`
 	getCrawlingJob     = `SELECT data FROM crawlingrun WHERE id = ?`
 
 	getCrawlingJobNameForCrawler = getCrawlingJobName + " WHERE crawler = ?"
@@ -55,8 +56,9 @@ var dbsettings DBSettings
 
 // Entity ...
 type Entity struct {
-	Name    string   `json:"name"`
-	Records []Record `json:"records"`
+	Name     string   `json:"name"`
+	Category string   `json:"category"`
+	Records  []Record `json:"records"`
 }
 
 // Record ...
@@ -84,13 +86,14 @@ type DownloadDB struct {
 func (d *DownloadDB) getCrawlingRunInfos(query string, args ...interface{}) (a []CrawlingRunInfo, e error) {
 	var rows *sql.Rows
 	rows, e = d.Db.Query(query, args...)
+	defer rows.Close()
 	if e != nil {
 		return a, e
 	}
 	var aa CrawlingRunInfo
 	aa.Status = "archived"
 	for rows.Next() {
-		if e = rows.Scan(&aa.ID, &aa.Crawler, &aa.Browsing, &aa.Starting, &aa.Ending, &aa.Current); e != nil {
+		if e = rows.Scan(&aa.ID, &aa.Crawler, &aa.Browsing, &aa.Error, &aa.Starting, &aa.Ending, &aa.Current); e != nil {
 			return a, e
 		}
 		a = append(a, aa)
@@ -131,13 +134,14 @@ func (d *DownloadDB) SaveCrawlingJob(job *CrawlingRunInfo) error {
 	if err != nil {
 		return err
 	}
-	_, err = d.Db.Exec(addCrawlingRun, job.ID, job.Crawler, job.Browsing, job.Starting, job.Ending, job.Current, data)
+	_, err = d.Db.Exec(addCrawlingRun, job.ID, job.Crawler, job.Browsing, job.Error, job.Starting, job.Ending, job.Current, data)
 	return err
 }
 
 // GetEntityName ...
-func (d *DownloadDB) GetEntityName() (a []string, e error) {
-	rows, err := d.Db.Query(getEntityName)
+func (d *DownloadDB) GetEntityName(limit, offset int) (a []string, e error) {
+	rows, err := d.Db.Query(getEntityName, limit, offset)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -152,14 +156,24 @@ func (d *DownloadDB) GetEntityName() (a []string, e error) {
 	return r, nil
 }
 
+// EntityExists ...
+func (d *DownloadDB) EntityExists(name string) bool {
+	rows, err := d.Db.Query(getEntity, name)
+	defer rows.Close()
+	if err != nil {
+		return false
+	}
+	return rows.Next()
+}
+
 // CreateEntity ...
-func (d *DownloadDB) CreateEntity(name string) (Entity, error) {
+func (d *DownloadDB) CreateEntity(browsing, name string) (Entity, error) {
 	stmt, err := d.Db.Prepare(addEntity)
 	defer stmt.Close()
 	if err != nil {
 		return Entity{}, err
 	}
-	if _, err = stmt.Exec("", name, "[]"); err == nil {
+	if _, err = stmt.Exec(browsing, name, "[]"); err == nil {
 		return Entity{
 			Records: []Record{},
 			Name:    name,
@@ -176,16 +190,13 @@ func (d *DownloadDB) GetEntity(name string) (Entity, error) {
 		if rows.Next() {
 			var data []byte
 			entity := Entity{}
-			if err := rows.Scan(&entity.Name, &data); err != nil {
+			if err := rows.Scan(&entity.Name, &entity.Category, &data); err != nil {
 				return Entity{}, err
 			}
 			if err := json.Unmarshal(data, &entity.Records); err != nil {
 				return Entity{}, err
 			}
 			return entity, nil
-		}
-		if _, err = d.CreateEntity(name); err == nil {
-			return d.GetEntity(name)
 		}
 		return Entity{}, err
 	}
@@ -231,7 +242,6 @@ func GetDownloadDB() (*DownloadDB, error) {
 	}
 	var db *sql.DB
 	var err error
-	println("Openning database " + dbsettings.Path)
 	if db, err = sql.Open("sqlite3", dbsettings.Path); err == nil && db != nil {
 		db.SetMaxOpenConns(1)
 		if _, err = db.Exec(createTable); err != nil {
