@@ -126,8 +126,17 @@ func RemoveCrawlRoutine(id int64) error {
 }
 
 // StartCrawlRoutineAfter ...
-func StartCrawlRoutineAfter(id int64) (CrawlingRunInfo, error) {
-	return CrawlingRunInfo{}, nil
+func StartCrawlRoutineAfter(id int64, ending int) (*CrawlingRunInfo, error) {
+	db, err := GetDownloadDB()
+	if err != nil {
+		return nil, err
+	}
+	info, err := db.GetCrawlingRunDetail(id)
+	if err != nil {
+		return nil, err
+	}
+	return StartCrawlRoutine(info.Crawler, info.Browsing, info.Current, ending)
+
 }
 
 func crawlBrowsing(name int64, runInfo *CrawlingRunInfo) error {
@@ -154,6 +163,19 @@ func crawlBrowsing(name int64, runInfo *CrawlingRunInfo) error {
 			if r := recover(); r != nil {
 				runInfo.Error = (r.(error)).Error()
 				runInfo.Status = "stopped"
+				db, err := GetDownloadDB()
+				if err != nil {
+					runInfo.Error = err.Error()
+				} else {
+					if err = db.SaveCrawlingJob(runInfo); err != nil {
+						runInfo.Error = err.Error()
+					} else {
+						runInfo.Status = "archived"
+						updateMap(name, runInfo)
+						delete(mapCrawlingInfo, name)
+						return
+					}
+				}
 				updateMap(name, runInfo)
 			}
 		}()

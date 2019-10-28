@@ -30,6 +30,33 @@ func (d *DaemonFindDownloadAPI) GetAvailableBrowsingForCrawler(name string) []st
 	}
 }
 
+// RemoveCrawlingRun ...
+func (d *DaemonFindDownloadAPI) RemoveCrawlingRun(id float64) float64 {
+	if err := d.db.RemoveCrawlingRun(int64(id)); err != nil {
+		panic(err)
+	}
+	indexer.FeedBack("findDownload", "onArchiveDelete", id)
+	return id
+}
+
+// GetCrawlingRunInfos ...
+func (d *DaemonFindDownloadAPI) GetCrawlingRunInfos() []indexer.CrawlingRunInfo {
+	if r, err := d.db.GetCrawlingRunInfos(); err == nil {
+		return r
+	} else {
+		panic(err)
+	}
+}
+
+// GetCrawlingRunDetail ...
+func (d *DaemonFindDownloadAPI) GetCrawlingRunDetail(id float64) indexer.CrawlingRunInfo {
+	if c, err := d.db.GetCrawlingRunDetail(int64(id)); err == nil {
+		return *c
+	} else {
+		panic(err)
+	}
+}
+
 // StopActiveCrawler ...
 func (d *DaemonFindDownloadAPI) StopActiveCrawler(id float64) {
 	if err := indexer.StopCrawlRoutine(int64(id)); err != nil {
@@ -55,9 +82,9 @@ func (d *DaemonFindDownloadAPI) RemoveCrawler(id float64) []indexer.CrawlingRunI
 }
 
 // StartCrawlerAfter ...
-func (d *DaemonFindDownloadAPI) StartCrawlerAfter(id float64) indexer.CrawlingRunInfo {
-	if c, err := indexer.StartCrawlRoutineAfter(int64(id)); err == nil {
-		return c
+func (d *DaemonFindDownloadAPI) StartCrawlerAfter(id float64, ending float64) indexer.CrawlingRunInfo {
+	if c, err := indexer.StartCrawlRoutineAfter(int64(id), int(ending)); err == nil {
+		return *c
 	} else {
 		panic(err)
 	}

@@ -20,20 +20,26 @@ const (
 	);
 
 	CREATE TABLE IF NOT EXISTS crawlingrun (
-		extracton INTEGER PRIMARY KEY,
+		id INTEGER PRIMARY KEY,
 		crawler VARCHAR(50),
 		browsing VARCHAR(50),
-		starting INTEGER,
-		ending INTEGER
+		start INTEGER,
+		end INTEGER,
+		data BLOB
 	);
 	`
 	addEntity        = `INSERT INTO entity(type,name,data) values(?,?,?)`
 	updateEntityData = `UPDATE entity SET data = ? WHERE name = ?`
 
-	addCrawlingRun = `INSERT INTO crawlingrun values(?,?,?,?,?)`
+	addCrawlingRun = `INSERT INTO crawlingrun values(?,?,?,?,?,?)`
 
 	getEntityName = `SELECT name FROM entity;`
-	getEntity     = `SELEcT name, data FROM entity WHERE name = ?`
+	getEntity     = `SELECT name, data FROM entity WHERE name = ?`
+
+	getCrawlingJobName = `SELECT id, crawler, browsing, start, end FROM crawlingrun`
+	getCrawlingJob     = `SELECT data FROM crawlingrun WHERE id = ?`
+
+	deleteCrawlingJob = `DELETE FROM crawlingrun WHERE id = ?`
 )
 
 // DBSettings ...
@@ -72,8 +78,53 @@ type DownloadDB struct {
 	Db *sql.DB
 }
 
+// GetCrawlingRunInfos ...
+func (d *DownloadDB) GetCrawlingRunInfos() (a []CrawlingRunInfo, e error) {
+	var rows *sql.Rows
+	rows, e = d.Db.Query(getCrawlingJobName)
+	if e != nil {
+		return a, e
+	}
+	var aa CrawlingRunInfo
+	aa.Status = "archived"
+	for rows.Next() {
+		if e = rows.Scan(&aa.ID, &aa.Crawler, &aa.Browsing, &aa.Starting, &aa.Ending); e != nil {
+			return a, e
+		}
+		a = append(a, aa)
+	}
+	return a, e
+}
+
+// GetCrawlingRunDetail ...
+func (d *DownloadDB) GetCrawlingRunDetail(id int64) (c *CrawlingRunInfo, e error) {
+	r := d.Db.QueryRow(getCrawlingJob, id)
+	var b []byte
+	if e = r.Scan(&b); e != nil {
+		return nil, e
+	}
+	c = &CrawlingRunInfo{}
+	return c, json.Unmarshal(b, c)
+}
+
+// RemoveCrawlingRun ...
+func (d *DownloadDB) RemoveCrawlingRun(id int64) error {
+	_, err := d.Db.Exec(deleteCrawlingJob, id)
+	return err
+}
+
+// SaveCrawlingJob ...
+func (d *DownloadDB) SaveCrawlingJob(job *CrawlingRunInfo) error {
+	data, err := json.Marshal(job)
+	if err != nil {
+		return err
+	}
+	_, err = d.Db.Exec(addCrawlingRun, job.ID, job.Crawler, job.Browsing, job.Starting, job.Current, data)
+	return err
+}
+
 // GetEntityName ...
-func (d *DownloadDB) GetEntityName() ([]string, error) {
+func (d *DownloadDB) GetEntityName() (a []string, e error) {
 	rows, err := d.Db.Query(getEntityName)
 	if err != nil {
 		return nil, err
