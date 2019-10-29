@@ -168,7 +168,7 @@ func crawlBrowsing(name int64, runInfo *CrawlingRunInfo) error {
 
 	updateMap(name, runInfo)
 
-	criteria := crawler.GetSettings().Browsings[runInfo.Browsing].Criteria
+	criteria := GetCriteria(runInfo.Browsing)
 	ch := make(chan Record, 5)
 	if err := startDbRoutine(runInfo.Browsing, criteria, ch, runInfo.SignalCh); err != nil {
 		return err

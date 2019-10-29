@@ -10,6 +10,14 @@ type TorrentCriteria struct {
 	Tags       []string `json:"tags"`
 }
 
+// GlobalTorrentCriteria ...
+type GlobalTorrentCriteria struct {
+	MinSeeders int                 `json:"min_seeders"`
+	Tags       map[string][]string `json:"tags"`
+
+	Category map[string]TorrentCriteria `json:"category"`
+}
+
 // BrowsingBase ...
 type BrowsingBase struct {
 	Category string          `json:"category"`
@@ -29,6 +37,7 @@ type Settings struct {
 	DB         DBSettings                `json:"database"`
 	Extraction ExtractionSettings        `json:"extraction_name_entity"`
 	Crawler    map[string]TorrentWebSite `json:"crawlers"`
+	Criteria   GlobalTorrentCriteria     `json:"criteria"`
 }
 
 // Replace ...
@@ -44,12 +53,14 @@ type ExtractionSettings struct {
 }
 
 var exSettings ExtractionSettings
+var criteriaSettings GlobalTorrentCriteria
 
 // SetSettings ...
 func SetSettings(s Settings) {
 	timeout = s.Timeout
 	dbsettings = s.DB
 	exSettings = s.Extraction
+	criteriaSettings = s.Criteria
 
 	for n, c := range crawlers {
 		if s, ok := s.Crawler[n]; ok {
@@ -58,6 +69,23 @@ func SetSettings(s Settings) {
 			panic("No setting for crawler" + n)
 		}
 	}
+}
+
+// GetCriteria ...
+func GetCriteria(category string) TorrentCriteria {
+	if d, ok := criteriaSettings.Category[category]; ok {
+		tags := d.Tags
+		for _, t := range tags {
+			if tt, ok := criteriaSettings.Tags[t]; ok {
+				d.Tags = append(d.Tags, tt...)
+			}
+		}
+		if d.MinSeeders == 0 {
+			d.MinSeeders = criteriaSettings.MinSeeders
+		}
+		return d
+	}
+	return TorrentCriteria{Tags: []string{}}
 }
 
 // ExtractNameAndTag ...

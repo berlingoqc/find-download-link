@@ -4,6 +4,7 @@ import (
 	"github.com/berlingoqc/find-download-link/indexer"
 	// nlab
 	_ "github.com/berlingoqc/find-download-link/indexer/pb"
+	_ "github.com/berlingoqc/find-download-link/indexer/rby"
 )
 
 // DaemonFindDownloadAPI ...
