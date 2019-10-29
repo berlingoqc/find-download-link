@@ -70,6 +70,7 @@ func (p *Crawler) GetPage(browsing string, index int) *indexer.TorrentBrowsingPa
 			switch ii {
 			case 1:
 				one(detail, eee)
+				detail.DetailLink = p.WebSite.URL + detail.DetailLink
 				break
 			case 2:
 				two(detail, eee)
