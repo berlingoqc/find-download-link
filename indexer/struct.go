@@ -7,6 +7,8 @@ type TorrentDetail struct {
 	Size       string   `json:"size"`
 	By         string   `json:"by"`
 	Flags      []string `json:"flags"`
+	Seeders    int      `json:"seeders"`
+	Leechers   int      `json:"leechers"`
 }
 
 // TorrentBrowsingPage ...

@@ -193,6 +193,9 @@ func (d *DownloadDB) EntityExists(name string) bool {
 
 // CreateEntity ...
 func (d *DownloadDB) CreateEntity(browsing, name string) (Entity, error) {
+	if name == "" {
+		return Entity{}, errors.New("No name for entity")
+	}
 	stmt, err := d.Db.Prepare(addEntity)
 	defer stmt.Close()
 	if err != nil {
