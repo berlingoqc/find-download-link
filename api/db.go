@@ -7,10 +7,16 @@ import (
 
 // PagingSearch ...
 type PagingSearch struct {
-	Limit   int      `json:"limit"`
-	Offset  int      `json:"offset"`
-	OrderBy []string `json:"orderBy"`
-	Query   string   `json:"query"`
+	Limit    int      `json:"limit"`
+	Offset   int      `json:"offset"`
+	OrderBy  []string `json:"orderBy"`
+	Query    string   `json:"query"`
+	Category string   `json:"category"`
+}
+
+// PagingInfo ...
+type PagingInfo struct {
+	ItemCount int `json:"item_count"`
 }
 
 // FindDownloadAPI ...
@@ -25,11 +31,22 @@ func (f *FindDownloadAPI) GetEntityName(in map[string]interface{}) []string {
 	if err != nil {
 		panic(err)
 	}
-	s, err := f.db.GetEntityName(p.Limit, p.Offset)
+	s, err := f.db.GetEntityName(p.Query, p.Category, p.Limit, p.Offset)
 	if err != nil {
 		panic(err)
 	}
 	return s
+}
+
+// GetPagingInfo ...
+func (f *FindDownloadAPI) GetPagingInfo() PagingInfo {
+	i, err := indexer.GetCountOfTable(f.db.Db, "query_entity")
+	if err != nil {
+		panic(err)
+	}
+	return PagingInfo{
+		ItemCount: i,
+	}
 }
 
 // GetEntity ...

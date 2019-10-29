@@ -19,6 +19,8 @@ const (
 		data BLOB
 	);
 
+	CREATE VIRTUAL TABLE IF NOT EXISTS query_entity USING FTS5(name,browsing);
+
 	CREATE TABLE IF NOT EXISTS crawlingrun (
 		id INTEGER PRIMARY KEY,
 		crawler VARCHAR(50),
@@ -28,15 +30,24 @@ const (
 		end INTEGER,
 		current INTEGER,
 		data BLOB
-	);
+  );
+  
+  CREATE TRIGGER IF NOT EXISTS trigger_create_entity
+    AFTER INSERT ON entity
+  BEGIN
+    INSERT INTO query_entity VALUES(new.name,new.type);
+  END;
 	`
 	addEntity        = `INSERT INTO entity(type,name,data) values(?,?,?)`
 	updateEntityData = `UPDATE entity SET data = ? WHERE name = ?`
 
 	addCrawlingRun = `INSERT INTO crawlingrun values(?,?,?,?,?,?,?,?)`
 
-	getEntityName = `SELECT name FROM entity LIMIT ? OFFSET ?`
-	getEntity     = `SELECT name,type, data FROM entity WHERE name = ?`
+	getEntityName = `SELECT name FROM query_entity`
+
+	limitOffset = ` LIMIT ? OFFSET ?`
+
+	getEntity = `SELECT name,type, data FROM entity WHERE name = ?`
 
 	getCrawlingJobName = `SELECT id, crawler, browsing,error, start, end, current FROM crawlingrun`
 	getCrawlingJob     = `SELECT data FROM crawlingrun WHERE id = ?`
@@ -139,8 +150,22 @@ func (d *DownloadDB) SaveCrawlingJob(job *CrawlingRunInfo) error {
 }
 
 // GetEntityName ...
-func (d *DownloadDB) GetEntityName(limit, offset int) (a []string, e error) {
-	rows, err := d.Db.Query(getEntityName, limit, offset)
+func (d *DownloadDB) GetEntityName(query, category string, limit, offset int) (a []string, e error) {
+	q := getEntityName
+	if query != "" {
+		q += " WHERE query_entity.name MATCH '" + query + "*' "
+	}
+	if category != "" {
+		s := "query_entity.browsing = '" + category + "' "
+		if query != "" {
+			q += " AND " + s
+		} else {
+			q += " WHERE " + s
+		}
+	}
+	q += limitOffset
+	println(q)
+	rows, err := d.Db.Query(q, limit, offset)
 	defer rows.Close()
 	if err != nil {
 		return nil, err
@@ -252,4 +277,10 @@ func GetDownloadDB() (*DownloadDB, error) {
 		}, nil
 	}
 	return nil, err
+}
+
+// GetCountOfTable ...
+func GetCountOfTable(db *sql.DB, entity string) (int, error) {
+	var i int
+	return i, db.QueryRow("SELECT count(*) FROM " + entity).Scan(&i)
 }
